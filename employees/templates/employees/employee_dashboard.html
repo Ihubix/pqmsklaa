@@ -1,0 +1,38 @@
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Pracownika</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>Witaj, {{ employee.first_name }} {{ employee.last_name }}!</h2>
+            <p><strong>Stanowisko:</strong> {{ employee.position }}</p>
+            <p><strong>Data zatrudnienia:</strong> {{ employee.hire_date|date:"d/m/Y" }}</p>
+        </header>
+
+        <section class="contracts-section">
+            <h2>Twoje Umowy</h2>
+            {% if contracts %}
+                <ul class="contract-list">
+                    {% for contract in contracts %}
+                        <li>
+                            <a href="{{ MEDIA_URL }}{{ contract.document_path }}" class="button" download>{{ contract.document_name }}</a>
+                            <span class="date"> (Wygenerowano: {{ contract.generated_date|date:"d/m/Y" }})</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="no-contracts">Brak umów do wyświetlenia.</p>
+            {% endif %}
+        </section>
+
+        <footer class="logout-section">
+            <a href="{% url 'employees:logout' %}" class="button logout">Wyloguj</a>
+        </footer>
+    </div>
+</body>
+</html>

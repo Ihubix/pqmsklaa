@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <title>Panel Admina</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Panel Admina</h1>
+        <!-- Okienko sukcesu -->
+        <div id="successMessage" class="success-message" style="display: none;">
+            <p>Umowa została pomyślnie wygenerowana!</p>
+        </div>
+
+        <!-- Lista Pracowników -->
+        <h2 class="section-title">Lista Pracowników
+            <button id="addEmployeeBtn" class="button">Nowy Pracownik</button>
+        </h2>
+        <ul class="employee-list">
+            {% for employee in employees %}
+                <li>
+                    <a href="{% url 'employees:employee_detail' employee.pk %}">
+                        {{ employee.first_name }} {{ employee.last_name }}
+                    </a> - {{ employee.email }}
+                </li>
+            {% empty %}
+                <p>Brak pracowników</p>
+            {% endfor %}
+        </ul>
+
+        <!-- Tabela Umów -->
+        <h2 class="section-title">Wszystkie wygenerowane umowy
+            <button id="addContractBtn" class="button">Generuj Umowę</button>
+        </h2>
+        <table class="contracts-table">
+            <thead>
+                <tr>
+                    <th>Nazwa Umowy</th>
+                    <th>Pracownik</th>
+                    <th>Data Generacji</th>
+                    <th>Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="contractTableBody">
+                {% for contract in contracts %}
+                    <tr>
+                        <td>{{ contract.document_name }}</td>
+                        <td>
+                            <a href="{% url 'employees:employee_detail' contract.employee.pk %}">
+                                {{ contract.employee.first_name }} {{ contract.employee.last_name }}
+                            </a>
+                        </td>
+                        <td>{{ contract.generated_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <a href="{{ MEDIA_URL }}{{ contract.document_path }}" download>Pobierz</a> |
+                            <a href="{% url 'employees:delete_contract' contract.pk %}" class="delete-link">Usuń</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">Brak umów</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Modal do Generowania Nowej Umowy -->
+        <div id="contractModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Dodaj Nową Umowę</h2>
+
+                <!-- Formularz generowania umowy -->
+                <form id="contractForm" method="post">
+                    {% csrf_token %}
+                    <label for="employee_select">Wybierz pracownika:</label>
+                    <select id="employee_select" required>
+                        <option value="">Wybierz pracownika</option>
+                        {% for employee in employees %}
+                            <option value="{{ employee.pk }}">{{ employee.first_name }} {{ employee.last_name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="template">Wybierz szablon:</label>
+                    <select id="template" name="template" required>
+                        <option value="">Wybierz...</option>
+                        {% for template in templates %}
+                            <option value="{{ template }}">{{ template }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="document_name">Nazwa dokumentu:</label>
+                    <input type="text" id="document_name" name="document_name" required>
+                    <div id="placeholderFields"></div>
+
+                    <button type="button" class="button" id="generateContractBtn">Generuj Umowę</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- JavaScript do obsługi modala, walidacji formularza i wyświetlenia okienka sukcesu -->
+        <script>
+            $(document).ready(function() {
+                var contractModal = $('#contractModal');
+                var employeeSelect = $('#employee_select');
+                var templateSelect = $('#template');
+                var placeholderFields = $('#placeholderFields');
+                var documentNameInput = $('#document_name');
+                var successMessage = $('#successMessage');
+                var employeeData = {};
+        
+                // Otwieranie modala
+                $('#addContractBtn').on('click', function() {
+                    contractModal.show();
+                });
+        
+                // Zamknięcie modala
+                $(document).on('click', '.close', function() {
+                    contractModal.hide();
+                });
+        
+                $(window).on('click', function(event) {
+                    if ($(event.target).is(contractModal)) {
+                        contractModal.hide();
+                    }
+                });
+        
+                // Załadowanie danych pracownika przy wyborze
+                employeeSelect.on('change', function() {
+                    var employeeId = $(this).val();
+                    if (employeeId) {
+                        $.ajax({
+                            url: "{% url 'employees:get_employee_data' %}",
+                            data: { id: employeeId },
+                            success: function(data) {
+                                if (data.status === 'success') {
+                                    employeeData = data.employee;
+                                } else {
+                                    console.error("Błąd pobierania danych pracownika:", data.message);
+                                    employeeData = {};
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.error("Błąd pobierania danych pracownika:", error);
+                                alert("Wystąpił błąd podczas pobierania danych pracownika.");
+                            }
+                        });
+                    } else {
+                        employeeData = {};
+                    }
+                });
+        
+                // Wczytanie placeholderów na podstawie szablonu
+                templateSelect.on('change', function() {
+                    var template = $(this).val();
+                    placeholderFields.empty();
+                    if (template) {
+                        $.ajax({
+                            url: "{% url 'employees:fetch_placeholders' %}",
+                            data: { template: template },
+                            success: function(data) {
+                                if (data.status === 'success') {
+                                    data.placeholders.forEach(function(placeholder) {
+                                        var fieldValue = "";
+                                        if (placeholder === 'first_name') fieldValue = employeeData.first_name || "";
+                                        else if (placeholder === 'last_name') fieldValue = employeeData.last_name || "";
+                                        else if (placeholder === 'position') fieldValue = employeeData.position || "";
+                                        else if (placeholder === 'hire_date') fieldValue = employeeData.hire_date || "";
+        
+                                        placeholderFields.append(`
+                                            <label for="placeholder_${placeholder}">${placeholder}:</label>
+                                            <input type="text" id="placeholder_${placeholder}" name="placeholder_${placeholder}" value="${fieldValue}" required>
+                                        `);
+                                    });
+                                    documentNameInput.val(template.replace('.docx', '') + ".docx");
+                                } else {
+                                    console.error("Błąd pobierania placeholderów:", data.message);
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.error("Błąd pobierania placeholderów:", error);
+                                alert("Wystąpił błąd podczas pobierania placeholderów.");
+                            }
+                        });
+                    }
+                });
+        
+                // Obsługa przycisku "Generuj Umowę" z dynamicznym dodawaniem wiersza do tabeli
+                $('#generateContractBtn').on('click', function(e) {
+                    e.preventDefault();
+                    var employeeId = employeeSelect.val();
+                    if (!employeeId) {
+                        alert("Wybierz pracownika.");
+                        return;
+                    }
+        
+                    // Walidacja wszystkich pól w formularzu
+                    var allFilled = true;
+                    $('#contractForm input[required]').each(function() {
+                        if ($(this).val() === '') {
+                            allFilled = false;
+                            $(this).addClass('error'); // Dodaj klasę error, aby wyróżnić puste pole
+                        } else {
+                            $(this).removeClass('error'); // Usuń klasę error, jeśli pole jest wypełnione
+                        }
+                    });
+        
+                    if (!allFilled) {
+                        alert("Wypełnij wszystkie wymagane pola.");
+                        return; // Zatrzymujemy wysyłanie formularza, jeśli nie wszystkie pola są wypełnione
+                    }
+        
+                    var actionUrl = "{% url 'employees:generate_contract' 0 %}".replace('0', employeeId);
+                    var formData = $('#contractForm').serialize();
+        
+                    $.ajax({
+                        type: 'POST',
+                        url: actionUrl,
+                        data: formData,
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                console.log("Umowa wygenerowana pomyślnie:", response);
+                                contractModal.hide();
+        
+                                // Dodaj nowy wiersz do tabeli umów
+                                $('#contractTableBody').append(`
+                                    <tr>
+                                        <td>${response.contract.document_name}</td>
+                                        <td>${response.contract.employee_name}</td>
+                                        <td>${response.contract.generated_date}</td>
+                                        <td>
+                                            <a href="${response.contract.download_url}" download>Pobierz</a> |
+                                            <a href="#" class="delete-link">Usuń</a>
+                                        </td>
+                                    </tr>
+                                `);
+        
+                                successMessage.fadeIn(400).delay(3000).fadeOut(400);
+                            } else if (response.status === 'error') {
+                                console.error("Błąd generowania umowy:", response.message);
+                                alert("Wystąpił problem z generowaniem umowy: " + response.message);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("Błąd podczas generowania umowy:", error);
+                            alert("Wystąpił błąd podczas generowania umowy. Sprawdź konsolę.");
+                        }
+                    });
+                });
+            });
+        </script>
+             
+</div>
+</body>
+</html>

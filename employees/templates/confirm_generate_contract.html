@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Potwierdzenie wygenerowania umowy</title>
+</head>
+<body>
+    <h1>Potwierdzenie wygenerowania umowy</h1>
+    <p>Czy na pewno chcesz wygenerować umowę {{ template_name }} dla {{ employee.first_name }} {{ employee.last_name }}?</p>
+    <p>Własna nazwa umowy (opcjonalnie):</p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="custom_name" value="{{ custom_name }}">
+        <input type="submit" value="Potwierdź">
+    </form>
+    <a href="{% url 'employees:employee_detail' employee.id %}">Anuluj</a>
+</body>
+</html>

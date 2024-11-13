@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Potwierdzenie Nadpisania Umowy</title>
+</head>
+<body>
+    <h1>Umowa już istnieje!</h1>
+    <p>Czy chcesz nadpisać istniejącą umowę {{ custom_name }} dla {{ employee.first_name }} {{ employee.last_name }}?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" formaction="{% url 'employees:generate_contract' employee.pk %}">Tak, nadpisz</button>
+        <a href="{% url 'employees:select_template' pk=employee.pk %}">Nie, wróć</a>
+    </form>
+</body>
+</html>

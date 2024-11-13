@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Szczegóły Pracownika</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="page-title">Szczegóły Pracownika</h1>
+        <div class="employee-details">
+            <p><strong>Imię:</strong> {{ employee.first_name }}</p>
+            <p><strong>Nazwisko:</strong> {{ employee.last_name }}</p>
+            <p><strong>E-mail:</strong> {{ employee.email }}</p>
+            <p><strong>Stanowisko:</strong> {{ employee.position }}</p>
+            <p><strong>Data Zatrudnienia:</strong> {{ employee.hire_date }}</p>
+        </div>
+
+        {% if is_admin %}
+            <h2 class="section-title">Generowanie Umowy:</h2>
+            {% if templates %}
+                <form method="post" action="{% url 'employees:generate_contract' employee.id %}" class="form">
+                    {% csrf_token %}
+
+                    <!-- Template Selection -->
+                    <label for="template">Wybierz szablon:</label>
+                    <select id="template" name="template" required>
+                        <option value="">Wybierz...</option>
+                        {% for template in templates %}
+                            <option value="{{ template }}">{{ template }}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Document Name -->
+                    <label for="custom_name">Nazwa dokumentu:</label>
+                    <input type="text" id="custom_name" name="custom_name" placeholder="Wprowadź własną nazwę dokumentu">
+                    
+                    <!-- Placeholder Fields (generated dynamically) -->
+                    <div id="placeholderFields"></div>
+                    
+                    <button type="submit" class="button">Generuj Umowę</button>
+                </form>
+            {% else %}
+                <p class="info-text">Brak dostępnych szablonów do wygenerowania umowy. Dodaj szablony do katalogu <code>media/documents</code>.</p>
+            {% endif %}
+            <br>
+
+            <h2 class="section-title">Wszystkie wygenerowane umowy dla pracownika:</h2>
+            {% if contracts %}
+                <ul class="contract-list">
+                    {% for contract in contracts %}
+                        <li>
+                            <a href="{{ MEDIA_URL }}{{ contract.document_path }}" class="button">{{ contract.document_name }}</a> 
+                            <span class="date"> - Wygenerowano: {{ contract.generated_date|date:"d/m/Y" }}</span>
+                            | <a href="{% url 'employees:delete_contract' contract.pk %}" class="button danger">Usuń</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="info-text">Brak wygenerowanych umów dla tego pracownika.</p>
+            {% endif %}
+        {% else %}
+            <h2 class="section-title">Twoje Umowy:</h2>
+            {% if contracts %}
+                <ul class="contract-list">
+                    {% for contract in contracts %}
+                        <li>
+                            <a href="{{ MEDIA_URL }}{{ contract.document_path }}" class="button">{{ contract.document_name }}</a>
+                            <span class="date"> - Wygenerowano: {{ contract.generated_date|date:"d/m/Y" }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="info-text">Brak wygenerowanych umów dla tego pracownika.</p>
+            {% endif %}
+        {% endif %}
+
+        <br>
+        <div class="navigation">
+            <a href="{% url 'employees:dashboard' %}" class="button">Powrót do listy</a>
+            <a href="{% url 'employees:logout' %}" class="button logout">Wyloguj</a>
+        </div>
+    </div>
+
+    <!-- JavaScript for placeholder handling -->
+    <script>
+        $(document).ready(function() {
+            var employeeFirstName = "{{ employee.first_name }}";
+            var employeeLastName = "{{ employee.last_name }}";
+            var employeePosition = "{{ employee.position }}";
+            var employeeHireDate = "{{ employee.hire_date }}";
+
+            $('#template').on('change', function() {
+                var template = $(this).val();
+                $('#placeholderFields').empty();  // Clear previous fields
+                
+                if (template) {
+                    $.get("{% url 'employees:fetch_placeholders' %}", { template: template }, function(data) {
+                        if (data.placeholders) {
+                            data.placeholders.forEach(function(placeholder) {
+                                var fieldValue = '';
+
+                                // Auto-fill known fields based on placeholder name
+                                if (placeholder === 'first_name') fieldValue = employeeFirstName;
+                                else if (placeholder === 'last_name') fieldValue = employeeLastName;
+                                else if (placeholder === 'position') fieldValue = employeePosition;
+                                else if (placeholder === 'hire_date') fieldValue = employeeHireDate;
+
+                                $('#placeholderFields').append(`
+                                    <label for="placeholder_${placeholder}">${placeholder}:</label>
+                                    <input type="text" id="placeholder_${placeholder}" name="placeholder_${placeholder}" value="${fieldValue}" required>
+                                `);
+                            });
+
+                            // Auto-fill document name based on template selection
+                            $('#custom_name').val(template.replace('.docx', '') + ".docx");
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

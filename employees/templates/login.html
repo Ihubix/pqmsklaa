@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logowanie</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="login-container">
+        <h2>Logowanie do systemu</h2>
+        
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        
+        <form method="POST">
+            {% csrf_token %}
+            
+            <input type="text" id="username" name="username" placeholder="Nazwa użytkownika" required>
+            
+            <input type="password" id="password" name="password" placeholder="Hasło" required>
+            
+            <button type="submit" class="btn-primary">Zaloguj</button>
+        </form>
+    </div>
+</body>
+</html>

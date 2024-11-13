@@ -1,0 +1,27 @@
+<!-- select_template.html -->
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wybór Szablonu</title>
+</head>
+<body>
+    <h1>Wybierz szablon dla {{ employee.first_name }} {{ employee.last_name }}</h1>
+    <form method="post" action="{% url 'employees:generate_contract' employee.pk %}">
+        {% csrf_token %}
+        <label for="template">Wybierz szablon:</label>
+        <select id="template" name="template" required>
+            {% for template in templates %}
+                <option value="{{ template }}">{{ template }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <label for="custom_name">Nazwa dokumentu (opcjonalnie):</label>
+        <input type="text" id="custom_name" name="custom_name" placeholder="Wprowadź własną nazwę dokumentu">
+        <br><br>
+        <button type="submit" class="button">Generuj Umowę</button>
+    </form>
+    <a href="{% url 'employees:employee_detail' employee.pk %}">Powrót do szczegółów</a>
+</body>
+</html>
